@@ -1,0 +1,509 @@
+
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>GOLDREX</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:12px 12px 75px;color:#fff3d0;font-family:Arial;
+ background:radial-gradient(ellipse at top,#77500e,#241707 25%,#080706 70%);
+ min-height:100vh
+}
+.wrap{max-width:520px;margin:auto}
+.gold{color:#ffdb64;text-shadow:0 0 10px #ffb000}
+.header{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px}
+.brand{font-size:25px;font-weight:900;letter-spacing:2px}
+.card,.game{
+ position:relative;overflow:hidden;
+ background:linear-gradient(145deg,#35230c,#171007,#090806);
+ border:1px solid #d49b27;border-radius:15px;padding:14px;margin-bottom:11px;
+ box-shadow:inset 0 0 18px #ffca3a18,0 0 12px #f6b91c22
+}
+.hero{text-align:center;padding:20px;background:radial-gradient(circle,#65430d,#1b1207 60%,#090806)}
+.lion{font-size:60px;filter:drop-shadow(0 0 12px #f6c64b)}
+.hero h1{font-size:38px;margin:5px;color:#ffd34e;letter-spacing:3px}
+.profile{display:flex;align-items:center;gap:10px}
+.avatar{font-size:28px;background:#b7831b;border-radius:50%;padding:10px}
+.grow{flex:1}
+.muted{color:#c4b28b;font-size:12px}
+.btn{
+ border:1px solid #ffe58a;border-radius:11px;padding:12px;
+ background:linear-gradient(#ffe77b,#e6a40b);color:#211400;
+ font-weight:bold;width:100%;margin:4px 0;box-shadow:0 3px 0 #8a5c08
+}
+.btn2{background:#211707;color:#ffd34e;border:1px solid #9a6d20}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.game{min-height:115px;text-align:center;padding:12px;color:#fff0c3}
+.game div{font-size:36px;filter:drop-shadow(0 0 7px #ffca3a)}
+.game b{display:block;margin:7px 0}
+.page{display:none}
+.page.active{display:block}
+.hidden{display:none!important}
+.status{text-align:center;color:#ffe39a;margin:10px}
+.small{font-size:11px;color:#bca879}
+.board{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:#164aa0;padding:7px;border-radius:10px}
+.cell{border:0;border-radius:50%;background:#081a42;aspect-ratio:1;padding:0}
+.disc{width:88%;height:88%;border-radius:50%;margin:auto}
+.red{background:radial-gradient(circle at 30% 25%,#ff9d6a,#d20c05)}
+.yellow{background:radial-gradient(circle at 30% 25%,#fff7a0,#d9a000)}
+.checkboard,.chessboard{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border:3px solid #a87520}
+.sq,.chesssq{display:grid;place-items:center;border:0;padding:0}
+.light,.chesssq.l{background:#ecd9a8}
+.dark,.chesssq.d{background:#583719}
+.man{width:75%;height:75%;border-radius:50%;border:3px solid #d6b15b}
+.man.r{background:#c10b08}.man.b{background:#191919}
+.man.king:after{content:'♛';color:#ffd34e;display:grid;place-items:center}
+.chesssq{font-size:clamp(22px,8vw,38px);color:#111}
+.chesssq.sel{outline:3px solid #ffe34f;outline-offset:-3px}
+.snake{width:100%;aspect-ratio:1;background:#101a0e;border:2px solid #9a6d20;border-radius:8px}
+.controls{display:grid;grid-template-columns:repeat(3,55px);gap:5px;justify-content:center;margin:10px}
+.controls button{height:45px;background:#211707;color:#ffd34e;border:1px solid #9a6d20;border-radius:8px}
+.betgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.bet{padding:10px;background:#211707;color:#ffd34e;border:1px solid #9a6d20;border-radius:9px}
+.bet.active{background:#e6a40b;color:#211400}
+.foot{position:fixed;bottom:0;left:0;right:0;background:#100c08;border-top:1px solid #8e641d;padding:10px;text-align:center}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+ <div class="header">
+  <div class="brand gold">♛ GOLDREX</div>
+  <div class="muted">🟢 <span id="online">0</span> online</div>
+ </div>
+
+ <section id="home" class="page active">
+  <div class="card hero">
+   <div class="lion">🦁👑</div>
+   <h1>GOLDREX</h1>
+   <div>O‘yin · Do‘stlik · G‘alaba</div>
+  </div>
+
+  <div class="card profile">
+   <div class="avatar">👑</div>
+   <div class="grow">
+    <b id="name">Player</b>
+    <div class="muted">ID: <span id="uid">—</span> · Daraja <span id="level">1</span></div>
+   </div>
+   <b class="gold">🟡 <span id="coins">5</span></b>
+  </div>
+
+  <button class="btn" onclick="page('games')">▶ PLAY</button>
+
+  <div class="card">
+   <b class="gold">🎮 O‘yinlar</b>
+   <div class="grid" style="margin-top:10px">
+    <button class="game" onclick="selectGame('chess')"><div>♟</div><b>Shaxmat</b><small>10 min · 1 min/yurish</small></button>
+    <button class="game" onclick="selectGame('checkers')"><div>⚫</div><b>Shashka</b><small>Online 1 ga 1</small></button>
+    <button class="game" onclick="selectGame('connect4')"><div>🔴</div><b>4 ta tosh</b><small>Online 1 ga 1</small></button>
+    <button class="game" onclick="selectGame('snake')"><div>🐍</div><b>Snake Lite</b><small>Online arena</small></button>
+   </div>
+  </div>
+
+  <div class="grid">
+   <button class="btn btn2" onclick="showProfile()">👤 Profil</button>
+   <button class="btn btn2" onclick="showRanking()">🏆 Reyting</button>
+  </div>
+  <p class="small">Tangalar faqat virtual ballar. Sotib olish yoki naqd pulga almashtirish yo‘q.</p>
+ </section>
+
+ <section id="games" class="page">
+  <button class="btn btn2" onclick="page('home')">← Orqaga</button>
+  <div class="card">
+   <b class="gold">O‘yin tanlang</b>
+   <div class="grid" style="margin-top:10px">
+    <button class="game" onclick="selectGame('chess')"><div>♟</div><b>Shaxmat</b></button>
+    <button class="game" onclick="selectGame('checkers')"><div>⚫</div><b>Shashka</b></button>
+    <button class="game" onclick="selectGame('connect4')"><div>🔴</div><b>4 ta tosh</b></button>
+    <button class="game" onclick="selectGame('snake')"><div>🐍</div><b>Snake Lite</b></button>
+   </div>
+  </div>
+ </section>
+
+ <section id="betPage" class="page">
+  <button class="btn btn2" onclick="page('home')">← Orqaga</button>
+  <div class="card">
+   <b class="gold">🟡 Virtual tanga miqdori</b>
+   <p class="muted">O‘yin uchun virtual ball tanlang.</p>
+   <div class="betgrid">
+    <button class="bet active" onclick="chooseBet(0,this)">Bepul</button>
+    <button class="bet" onclick="chooseBet(3,this)">3</button>
+    <button class="bet" onclick="chooseBet(10,this)">10</button>
+    <button class="bet" onclick="chooseBet(50,this)">50</button>
+    <button class="bet" onclick="chooseBet(100,this)">100</button>
+    <button class="bet" onclick="chooseBet(500,this)">500</button>
+    <button class="bet" onclick="chooseBet(1000,this)">1000</button>
+   </div>
+   <button class="btn" onclick="startQueue()">🔎 Raqib qidirish</button>
+  </div>
+ </section>
+
+ <section id="match" class="page">
+  <button class="btn btn2" onclick="leave()">← Chiqish</button>
+  <div class="card">
+   <div class="gold" id="gtitle">O‘yin</div>
+   <div class="status" id="status">Raqib qidirilmoqda...</div>
+   <div class="muted" id="clock"></div>
+   <div id="chessArea" class="hidden"><div id="chessBoard" class="chessboard"></div></div>
+   <div id="checkArea" class="hidden"><div id="checkBoard" class="checkboard"></div></div>
+   <div id="connectArea" class="hidden"><div id="connectBoard" class="board"></div></div>
+   <div id="snakeArea" class="hidden">
+    <canvas id="snakeCanvas" class="snake" width="420" height="420"></canvas>
+    <div class="controls">
+     <button onclick="snakeDir('U')">▲</button>
+     <button onclick="snakeDir('L')">◀</button>
+     <button onclick="snakeDir('D')">▼</button>
+     <button onclick="snakeDir('R')">▶</button>
+    </div>
+   </div>
+  </div>
+ </section>
+
+ <section id="profile" class="page">
+  <button class="btn btn2" onclick="page('home')">← Orqaga</button>
+  <div class="card">
+   👤 <b id="pname">Player</b><br>
+   🟡 Tanga: <span id="pcoins">5</span><br>
+   ⭐ Daraja: <span id="plevel">1</span><br>
+   🏆 G‘alaba: <span id="pwins">0</span><br>
+   ❌ Mag‘lubiyat: <span id="plosses">0</span>
+  </div>
+ </section>
+
+ <section id="ranking" class="page">
+  <button class="btn btn2" onclick="page('home')">← Orqaga</button>
+  <div class="card">
+   <b class="gold">🏆 Reyting</b>
+   <div id="leaders">Yuklanmoqda...</div>
+  </div>
+ </section>
+</div>
+
+<div class="foot small">GOLDREX · Online multiplayer</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const initData = tg.initData || "";
+const user = tg.initDataUnsafe?.user || {};
+const uid = user.id;
+const name = user.first_name || "Player";
+
+if (!uid || !initData) {
+ document.body.innerHTML =
+  '<div style="padding:25px;color:#ffd34e">GOLDREX faqat Telegram ichida ishlaydi. Botdan WebApp-ni oching.</div>';
+ throw new Error("Telegram initData missing");
+}
+
+document.getElementById("name").textContent = name;
+document.getElementById("pname").textContent = name;
+document.getElementById("uid").textContent = uid;
+
+let me = {coins:5,wins:0,losses:0,level:1};
+let selectedGame = "";
+let selectedBet = 0;
+let room = null;
+let game = "";
+let you = 0;
+let turn = 0;
+let matchState = null;
+let chess = null;
+let chessSelected = null;
+let timerInterval = null;
+let turnStart = Date.now();
+let snakeData = null;
+
+function page(id) {
+ document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+
+async function apiMe() {
+ const r = await fetch("/api/me", {
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({initData})
+ });
+ if (!r.ok) throw new Error("Telegram tasdiqlanmadi");
+ me = await r.json();
+ updateProfile();
+}
+
+function updateProfile() {
+ ["coins","pcoins"].forEach(id=>document.getElementById(id).textContent=me.coins);
+ ["level","plevel"].forEach(id=>document.getElementById(id).textContent=me.level);
+ document.getElementById("pwins").textContent=me.wins;
+ document.getElementById("plosses").textContent=me.losses;
+}
+
+const socket = io({
+ auth:{initData},
+ transports:["websocket","polling"]
+});
+
+socket.on("connect_error", e => {
+ document.getElementById("status").textContent =
+  "Serverga ulanishda xato: " + e.message;
+});
+
+socket.on("online", d => {
+ document.getElementById("online").textContent=d.count;
+});
+
+socket.on("queued", d => {
+ document.getElementById("status").textContent=d.text;
+});
+
+function selectGame(g) {
+ selectedGame=g;
+ selectedBet=0;
+ document.querySelectorAll(".bet").forEach(x=>x.classList.remove("active"));
+ document.querySelector(".bet").classList.add("active");
+ page("betPage");
+}
+
+function chooseBet(n, el) {
+ selectedBet=n;
+ document.querySelectorAll(".bet").forEach(x=>x.classList.remove("active"));
+ el.classList.add("active");
+}
+
+function startQueue() {
+ if (selectedBet > me.coins) {
+  alert("Tangalar yetarli emas");
+  return;
+ }
+ game=selectedGame;
+ page("match");
+ document.getElementById("gtitle").textContent={
+  chess:"♟ Shaxmat",
+  checkers:"⚫ Shashka",
+  connect4:"🔴 4 ta tosh",
+  snake:"🐍 Snake Lite"
+ }[game];
+ document.getElementById("status").textContent="Raqib qidirilmoqda...";
+ socket.emit("join_queue",{game,bet:selectedBet});
+}
+
+socket.on("match_found", d => {
+ room=d.room;
+ game=d.game;
+ you=d.you;
+ matchState=d.state;
+ turn=matchState.turn||0;
+ chessSelected=null;
+
+ document.getElementById("status").textContent=
+  "Raqib: "+d.opponent+" · Siz "+(you===0?"1":"2");
+
+ ["chessArea","checkArea","connectArea","snakeArea"].forEach(
+  x=>document.getElementById(x).classList.add("hidden")
+ );
+
+ if(game==="chess"){
+  document.getElementById("chessArea").classList.remove("hidden");
+  chess=new Chess();
+  chess.load(matchState.fen);
+  renderChess();
+ }
+ if(game==="checkers"){
+  document.getElementById("checkArea").classList.remove("hidden");
+  renderCheck(matchState);
+ }
+ if(game==="connect4"){
+  document.getElementById("connectArea").classList.remove("hidden");
+  renderConnect(matchState);
+ }
+ if(game==="snake"){
+  document.getElementById("snakeArea").classList.remove("hidden");
+  snakeData=matchState;
+  drawSnake();
+ }
+ startClock();
+});
+
+socket.on("state", d => {
+ matchState=d.state;
+ turn=matchState.turn;
+
+ if(game==="connect4") renderConnect(matchState);
+ if(game==="checkers") renderCheck(matchState);
+ if(game==="chess" && chess) {
+  chess.load(matchState.fen);
+  renderChess();
+ }
+ if(game==="snake"){
+  snakeData=matchState;
+  drawSnake();
+ }
+});
+
+socket.on("game_over", async d => {
+ clearInterval(timerInterval);
+ document.getElementById("status").textContent=d.text;
+ room=null;
+ await apiMe().catch(()=>{});
+});
+
+socket.on("notice", d => alert(d.text));
+
+function startClock() {
+ clearInterval(timerInterval);
+ let start=Date.now();
+ let total=game==="chess"?600:300;
+ timerInterval=setInterval(()=>{
+  let left=Math.max(0,total-Math.floor((Date.now()-start)/1000));
+  document.getElementById("clock").textContent=
+   Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
+  if(left<=0){
+   clearInterval(timerInterval);
+   leave();
+  }
+ },1000);
+}
+
+function leave() {
+ socket.emit("leave_game");
+ clearInterval(timerInterval);
+ room=null;
+ page("games");
+}
+
+function renderConnect(s) {
+ const el=document.getElementById("connectBoard");
+ el.innerHTML="";
+ s.board.forEach(row=>row.forEach((v,c)=>{
+  const b=document.createElement("button");
+  b.className="cell";
+  b.onclick=()=>socket.emit("game_action",{action:{col:c}});
+  if(v){
+   const d=document.createElement("div");
+   d.className="disc "+(v===1?"red":"yellow");
+   b.appendChild(d);
+  }
+  el.appendChild(b);
+ }));
+ document.getElementById("status").textContent=
+  turn===you?"Sizning yurishingiz":"Raqib yurmoqda";
+}
+
+function renderCheck(s) {
+ const el=document.getElementById("checkBoard");
+ el.innerHTML="";
+ s.board.forEach((row,r)=>row.forEach((v,c)=>{
+  const b=document.createElement("button");
+  b.className="sq "+((r+c)%2?"dark":"light");
+  b.onclick=()=>socket.emit("game_action",{action:{r,c}});
+  if(v){
+   const d=document.createElement("div");
+   d.className="man "+(v%2?"r":"b")+(v>2?" king":"");
+   b.appendChild(d);
+  }
+  if(s.selected && s.selected[0]===r && s.selected[1]===c)
+   b.style.outline="3px solid #ffe34f";
+  el.appendChild(b);
+ }));
+ document.getElementById("status").textContent=
+  turn===you?"Sizning yurishingiz":"Raqib yurmoqda";
+}
+
+const chars={
+ wK:"♔",wQ:"♕",wR:"♖",wB:"♗",wN:"♘",wP:"♙",
+ bK:"♚",bQ:"♛",bR:"♜",bB:"♝",bN:"♞",bP:"♟"
+};
+
+function renderChess() {
+ const el=document.getElementById("chessBoard");
+ el.innerHTML="";
+ chess.board().forEach((row,r)=>row.forEach((p,c)=>{
+  const b=document.createElement("button");
+  b.className="chesssq "+((r+c)%2?"d":"l");
+  const sq="abcdefgh"[c]+(8-r);
+  if(p)b.textContent=chars[p.color+p.type.toUpperCase()]||"";
+  if(chessSelected===sq)b.classList.add("sel");
+  b.onclick=()=>chessClick(r,c);
+  el.appendChild(b);
+ }));
+ document.getElementById("status").textContent=
+  chess.turn()===(you===0?"w":"b")?"Sizning yurishingiz":"Raqib yurmoqda";
+}
+
+function chessClick(r,c) {
+ if(!chess || chess.turn()!==(you===0?"w":"b"))return;
+ const sq="abcdefgh"[c]+(8-r);
+ if(chessSelected){
+  const move=chess.move({from:chessSelected,to:sq,promotion:"q"});
+  if(move){
+   chessSelected=null;
+   socket.emit("game_action",{action:{move:move.from+move.to+(move.promotion||"")}});
+   renderChess();
+   return;
+  }
+ }
+ const p=chess.get(sq);
+ chessSelected=p&&p.color===chess.turn()?sq:null;
+ renderChess();
+}
+
+const cv=document.getElementById("snakeCanvas");
+const cx=cv.getContext("2d");
+
+function drawSnake() {
+ if(!snakeData)return;
+ cx.fillStyle="#101a0e";
+ cx.fillRect(0,0,420,420);
+ snakeData.players.forEach((p,i)=>{
+  cx.fillStyle=i===you?"#8cff45":"#ffca36";
+  cx.fillRect(p.x*21,p.y*21,18,18);
+ });
+ const f=snakeData.food;
+ cx.fillStyle="#ff4538";
+ cx.fillRect(f.x*21,f.y*21,18,18);
+}
+
+function snakeDir(d) {
+ if(!snakeData)return;
+ socket.emit("game_action",{action:{dir:d}});
+}
+
+document.addEventListener("keydown",e=>{
+ const m={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R"};
+ if(m[e.key])snakeDir(m[e.key]);
+});
+
+async function showProfile() {
+ await apiMe().catch(()=>{});
+ page("profile");
+}
+
+async function showRanking() {
+ page("ranking");
+ const el=document.getElementById("leaders");
+ el.textContent="Yuklanmoqda...";
+ try{
+  const r=await fetch("/api/leaderboard");
+  const data=await r.json();
+  el.innerHTML="";
+  data.forEach((x,i)=>{
+   const div=document.createElement("div");
+   div.textContent=`${i+1}. ${x.username} — ${x.wins} g‘alaba · ${x.coins} tanga`;
+   el.appendChild(div);
+  });
+  if(!data.length)el.textContent="Reyting bo‘sh";
+ }catch(e){el.textContent="Reyting yuklanmadi";}
+}
+
+apiMe().catch(e=>alert(e.message));
+</script>
+</body>
+</html>
